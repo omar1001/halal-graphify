@@ -7,14 +7,19 @@ merge conflict: there is no merge, only a regeneration.
 
 Two properties this script must always have:
 
-  * TOTAL      -- after it runs, the old term does not survive anywhere in the
-                  generated tree (outside the quarantined module and the
-                  licence files). Enforced by the guard at the end, which
-                  fails the whole sync rather than shipping the word.
+  * TOTAL      -- after it runs, nothing in the generated tree NAMES anything a
+                  god. Enforced by the guard at the end, which fails the whole
+                  sync rather than shipping such a usage.
   * IDEMPOTENT -- running it twice produces a byte-identical tree.
 
-Note that this file contains no literal of the old term. Its vocabulary is
-imported from the one module allowed to hold it, overlay/migrate.py.
+The rule being enforced is about attribution, not the word itself: calling a
+node a god is what must go. Saying the word to explain what was removed is a
+mention, and is fine -- which is why FORK_NOTICE below states the change
+plainly, and why the guard blanks exactly that banner (and nothing else)
+before scanning README.md.
+
+The transform's vocabulary is imported from overlay/migrate.py rather than
+duplicated here, so the two can never drift apart.
 
 Usage:  python rename.py <checkout-dir>
 """
