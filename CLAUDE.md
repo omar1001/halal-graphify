@@ -8,16 +8,26 @@ published to PyPI as `halal-graphify`.
 
 ## The one invariant
 
-**The old term must not appear anywhere except `migrate.py`.** `rename.py`'s guard enforces this and
-fails the whole sync rather than shipping it. `migrate.py` holds it deliberately — a tool that
-removes a word must contain that word to search for it. Do not "clean up" that file.
+**The rule is about attribution, not the word.** Nothing may *call* a node — or anything else — a
+god. That is the naming the fork exists to remove, and it must never appear in the code, the CLI, the
+reports or any generated output. Saying the word to *explain what was removed* is a mention, not an
+attribution, and is allowed. Omar's ruling; do not narrow or widen it.
 
-Three things a bare `grep -ri` will still surface, none of them the term:
-- `overlay/migrate.py` and `halal_graphify/migrate.py` are the *same* quarantined file (source, and
-  the copy the overlay places in the package).
-- `docs/translations/README.pl-PL.md` contains the Polish word for "weeks", and this changelog names
-  the other unrelated words on the protect-list. Different words that share three letters.
-- `docs/graph-hero.png` is a binary image whose compressed bytes happen to contain that sequence.
+`rename.py`'s guard enforces this and fails the whole sync rather than shipping a usage. Three places
+legitimately contain the word:
+
+| Where | Why |
+|---|---|
+| `migrate.py` (source in `overlay/`, copy in the package — same file) | a tool that removes a word must contain it to search for it |
+| the `FORK_NOTICE` banner in `README.md` | states plainly what was renamed, so people can find the fork |
+| `docs/CHANGELOG.md` | engineering record; describes the transform precisely |
+
+The guard blanks the exact banner text before scanning `README.md`, so **any other** occurrence in
+that file still fails. Do not relax that into skipping the file.
+
+Two more things a bare `grep -ri` surfaces that are not the term at all:
+`docs/translations/README.pl-PL.md` holds the Polish word for "weeks", and `docs/graph-hero.png` is a
+binary image whose compressed bytes happen to contain that byte sequence.
 
 ## How this repo works — read this before changing anything
 

@@ -1,19 +1,51 @@
 > ### This is halal-graphify — an unofficial fork of [Graphify](https://github.com/Graphify-Labs/graphify)
 >
-> **The only change: the original's deity-based name for its most-connected
-> nodes is replaced with "hub node."** "Hub" is the standard graph-theory term
-> for a highly connected vertex, so nothing is lost — the concept, the maths
-> and the output are identical. Only the word changes.
+> **The only change: what the original calls "god nodes" are called "hub nodes"
+> here.** Nothing else differs — same analysis, same maths, same output, same
+> commands. "Hub" is the standard graph-theory term for a highly connected
+> vertex, so the name is arguably the more correct one anyway.
 >
-> Made for Muslims, and for anyone else who would rather not have that word in
-> their tools. Everything else is upstream, tracked automatically and released
-> in step with it.
->
-> Coming from the original? Run `halal-graphify migrate .` once and your existing
-> graphs keep working — no re-extract needed.
+> Made for Muslims, and for anyone else who would rather their tools did not
+> describe a piece of code that way. Everything else is upstream, tracked
+> automatically and released in step with it.
 >
 > Not affiliated with or endorsed by Graphify Labs.
 > Licensed under Apache-2.0. This is a modified version of the original work.
+
+## Coming from the original Graphify?
+
+**Your existing graphs keep working — you do not need to re-extract anything.**
+Run this once inside a project you had already graphed:
+
+```bash
+halal-graphify migrate .
+```
+
+That rewrites the stale key inside `graphify-out/` so the reports read
+correctly. It is offline, uses no AI and costs nothing, writes a `.bak` backup
+beside every file it touches, and is safe to run twice — the second run just
+says there is nothing to do.
+
+If your own notes, READMEs or agent rules also mention the old wording, add
+`--docs`:
+
+```bash
+halal-graphify migrate . --docs
+```
+
+That one **shows you every proposed change first and writes nothing until you
+type `y`.** There is deliberately no flag to skip that confirmation: the tool
+cannot tell your prose apart from a document that uses the word for entirely
+unrelated and legitimate reasons, so you get the final say. Words that merely
+contain the same letters — the Polish *tygodnie*, "Godot", "pagoda" — are
+recognised and never touched.
+
+On Windows you can also just double-click `migrate.bat` inside the project.
+
+**What is *not* renamed, on purpose:** `graphify-out/`, `GRAPHIFY_OUT`,
+`.graphifyignore` and `.graphifyinclude`. Those live in *your* project, so
+leaving them alone means both tools read the same data and nothing you already
+set up breaks.
 
 <p align="center">
   <a href="https://graphify.com"><img src="https://raw.githubusercontent.com/Graphify-Labs/graphify/v8/docs/logo.png" width="300" height="140" alt="Graphify"/></a>
