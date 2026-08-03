@@ -61,7 +61,9 @@ jobs:
         run: |
           python sync.py
           echo "synced=true" >> "$GITHUB_OUTPUT"
-          echo "tag=$(git describe --tags --abbrev=0)" >> "$GITHUB_OUTPUT"
+          # Read the tag sync.py recorded, rather than `git describe`, which
+          # would pick whichever tag happens to be reachable.
+          echo "tag=$(cat upstream-tag.txt)" >> "$GITHUB_OUTPUT"
 
       - name: Install and run the test suite
         if: steps.sync.outputs.synced == 'true'
@@ -75,9 +77,15 @@ jobs:
                      | sed 's/^/--deselect /' | tr '\n' ' ')
           pytest tests -q $DESELECT
 
+      # Tags are force-pushed because sync.py creates them with `git tag -f`.
+      # A plain `--follow-tags` silently refuses to move a tag that already
+      # exists on the remote, which would leave the release tag pointing at the
+      # wrong tree -- and the publish job below checks that tag out.
       - name: Push
         if: steps.sync.outputs.synced == 'true'
-        run: git push --follow-tags
+        run: |
+          git push origin HEAD:main
+          git push --force origin "refs/tags/${{ steps.sync.outputs.tag }}"
 
       - name: Report a failure as an issue
         if: failure()
