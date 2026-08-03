@@ -67,6 +67,15 @@ LICENCE_FILES = {"LICENSE", "LICENSE-MIT", "NOTICE"}
 # but listing both means running the guard over the repo root is also clean.
 QUARANTINED = {f"{FORK_PKG}/migrate.py", "overlay/migrate.py"}
 
+# Fork-authored files that may name the old term because they are *explaining
+# what was removed* -- a mention, not an attribution -- or, in this script's
+# case, because they hold the banner text that does the explaining.
+#
+# None of these ever reach a generated tree: they are fork-owned and restored
+# after the transform, so during a real sync the guard never sees them. They
+# are listed so that running the guard over the repo root is clean too.
+FORK_AUTHORED = {"CLAUDE.md", "docs/CHANGELOG.md", "rename.py"}
+
 SKIP_DIRS = {".git", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
              "dist", "build", ".venv", "venv", "node_modules", ".github"}
 
@@ -347,7 +356,7 @@ def guard(root: Path) -> list[str]:
         if not p.is_file() or any(d in SKIP_DIRS for d in p.parts):
             continue
         rel = p.relative_to(root).as_posix()
-        if p.name in LICENCE_FILES or rel in QUARANTINED:
+        if p.name in LICENCE_FILES or rel in QUARANTINED or rel in FORK_AUTHORED:
             continue
         if p.suffix.lower() not in TEXT_SUFFIXES:
             continue
