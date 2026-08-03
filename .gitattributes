@@ -1,0 +1,9 @@
+# The workflow's `run:` blocks execute in bash on a Linux runner. If they are
+# checked out with CRLF, every line ends in a stray \r and the shell fails with
+# errors like `$'\r': command not found`. Force LF on everything the runner or
+# a POSIX shell touches. The .bat files are Windows-only, so they keep CRLF.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.png binary
+*.jpg binary
+*.svg text eol=lf
