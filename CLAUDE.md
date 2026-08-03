@@ -8,10 +8,16 @@ published to PyPI as `halal-graphify`.
 
 ## The one invariant
 
-**The old term must not appear anywhere except `overlay/migrate.py` and the licence files.**
-`rename.py`'s guard enforces this and fails the whole sync rather than shipping it. `migrate.py`
-holds it deliberately — a tool that removes a word must contain that word to search for it.
-Do not "clean up" that file.
+**The old term must not appear anywhere except `migrate.py`.** `rename.py`'s guard enforces this and
+fails the whole sync rather than shipping it. `migrate.py` holds it deliberately — a tool that
+removes a word must contain that word to search for it. Do not "clean up" that file.
+
+Three things a bare `grep -ri` will still surface, none of them the term:
+- `overlay/migrate.py` and `halal_graphify/migrate.py` are the *same* quarantined file (source, and
+  the copy the overlay places in the package).
+- `docs/translations/README.pl-PL.md` contains the Polish word for "weeks", and this changelog names
+  the other unrelated words on the protect-list. Different words that share three letters.
+- `docs/graph-hero.png` is a binary image whose compressed bytes happen to contain that sequence.
 
 ## How this repo works — read this before changing anything
 

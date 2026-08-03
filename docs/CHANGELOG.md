@@ -60,8 +60,9 @@ replace mangles the Polish translation. Hence `PROTECTED_WORDS` in `overlay/migr
 defensively covers `godot`, `godzin`, `godina`, `pagoda`. **Do not remove that mechanism** — it is
 load-bearing, and verified by the Polish file surviving each sync.
 
-Translated docs DO carry translated forms of the term (Dutch `godknooppunten`, Uzbek `god-tugunlar`).
-Those are genuine targets and are renamed.
+Translated docs DO carry translated compounds of the term — the Dutch, Uzbek and several other
+`docs/translations/README.*.md` files splice it onto a local word for "node". Those are genuine
+targets, and the transform catches them because it works on the substring rather than on whole words.
 
 **Hyphen vs underscore caused every real bug in the transform.** Recorded in `CLAUDE.md`. The
 specific failures found by running upstream's test suite:
@@ -93,6 +94,6 @@ Migration still matters, but the failure mode is narrower than first described.
 ### Verified end to end
 
 Original graphify generated a real graph; `halal-graphify migrate` converted its
-`.graphify_analysis.json` (`gods` → `hubs`), left every value untouched, wrote `.bak` backups, and
+`.graphify_analysis.json` (stale analysis key → `hubs`), left every value untouched, wrote backups, and
 reported "nothing to do" on a second run. `--docs` previewed changes, wrote nothing on EOF, applied
 them on `y`, and left the Polish false-positive file alone in both cases.
