@@ -1,0 +1,39 @@
+# Upstream tests that cannot pass in a fork, with the reason for each.
+#
+# The sync workflow deselects exactly these and requires everything else to
+# pass. That is the point: if the rename ever breaks something real, a NEW
+# failure appears here and the sync stops. Keeping this list short and
+# justified is what makes the test suite a meaningful guard rather than noise.
+#
+# Format: one pytest node id per line. Blank lines and #-comments ignored.
+# Every entry MUST carry a reason. If you cannot write one, fix the code
+# instead of adding a line here.
+
+# --- our name contains a hyphen; the test's regex does not allow one --------
+# test_hooks.py greps rebuild bodies with r"print\(f'\[([a-z ]+)\]" to check
+# every log line uses one prefix. Our prefix is [halal-graphify]; the character
+# class has no hyphen, so it matches nothing and the count assertion fails.
+# The product is correct -- it does log a single consistent prefix.
+tests/test_hooks.py::test_rebuild_bodies_arm_a_timeout_without_sigalrm
+
+# --- deliberate behavioural divergence: we do not touch the other tool ------
+# Upstream's installer removes any hook whose text contains "graphify", which
+# assumes it is the only such tool on the machine. halal-graphify matches on
+# its own name instead, so installing it never deletes hooks belonging to the
+# original. That is required for the coexistence this fork promises, and it is
+# exactly what this test asserts against.
+tests/test_install_upgrade.py::test_claude_install_upgrades_stale_hook_payload
+
+# --- upstream's skill-authoring pipeline, bound to upstream's git history ---
+# tools/skillgen renders committed skill artifacts and diffs them against
+# snapshots read from a PINNED upstream commit:
+#     _V8_BASELINE_SHA = "47042beb05d1f6dd2186c0c499ae2840ce604ead"
+#     git show <sha>:graphify/skill.md
+# That blob path exists only in upstream's history, and the fork's tree is
+# regenerated rather than inherited, so the baseline is unreachable by
+# construction. These tests validate how upstream AUTHORS skills; they say
+# nothing about whether halal-graphify works. The shipped skill files
+# themselves are verified by the packaging and install tests, which pass.
+tests/test_skillgen.py::test_check_passes
+tests/test_skillgen.py::test_check_passes_for_codex_and_windows
+tests/test_skillgen.py::test_always_on_files_are_guarded_by_check

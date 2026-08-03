@@ -1,0 +1,74 @@
+# halal-graphify
+
+**Criticality tier:** `normal`
+
+An unofficial fork of [Graphify](https://github.com/Graphify-Labs/graphify) that replaces the
+original's deity-based name for highly-connected nodes with **"hub node"**. Public, Apache-2.0,
+published to PyPI as `halal-graphify`.
+
+## The one invariant
+
+**The old term must not appear anywhere except `overlay/migrate.py` and the licence files.**
+`rename.py`'s guard enforces this and fails the whole sync rather than shipping it. `migrate.py`
+holds it deliberately — a tool that removes a word must contain that word to search for it.
+Do not "clean up" that file.
+
+## How this repo works — read this before changing anything
+
+The source tree is **generated, not edited**. It is rebuilt from an upstream release tag by
+`rename.py` on every sync, so:
+
+- **Never hand-edit anything outside the fork-owned files below.** Your edit will be erased on the
+  next sync. Change `rename.py` instead.
+- There is no `git merge` in the pipeline, which is why a resync cannot conflict.
+
+| Fork-owned (survives a sync) | What it is |
+|---|---|
+| `rename.py` | the transform + the guard |
+| `overlay/migrate.py` | the `migrate` verb; sole home of the old term |
+| `sync.py` | fetch newest upstream tag → rename → overlay → commit |
+| `fork-divergences.txt` | upstream tests that cannot pass in a fork, each with a reason |
+| `.github/workflows/sync.yml` | weekly sync + PyPI publish |
+| `update.bat`, `migrate.bat` | double-click entry points |
+| `CLAUDE.md`, `docs/CHANGELOG.md` | these |
+
+Everything else is regenerated upstream code.
+
+## Names that must NOT be renamed
+
+These live in the *user's* project, so renaming them would break graphs and config people already
+have: `graphify-out`, `GRAPHIFY_OUT`, `.graphifyignore`, `.graphifyinclude`, `.graphify`.
+They are parked in `rename.py:KEEP_LITERALS`. Upstream URLs are parked too (attribution).
+
+## Hyphen vs underscore — the trap that caused most bugs
+
+| Form | Used for | Example |
+|---|---|---|
+| `halal-graphify` | distribution name, CLI command, skill folder, user-facing prose | `pip install halal-graphify` |
+| `halal_graphify` | python package, `python -m`, repo paths, setuptools keys | `from halal_graphify.analyze import hub_nodes` |
+
+Getting these backwards produces a wheel that installs nothing, or a CLI that cannot import itself.
+`rename.py`'s rules 4a–6 exist entirely to keep them apart.
+
+## Commands
+
+```bash
+python rename.py <checkout>     # transform a tree (used by sync)
+python sync.py --check          # is there a newer upstream release?
+python sync.py                  # regenerate, commit, tag
+pytest tests -q                 # upstream's suite; see fork-divergences.txt
+```
+
+## Read on demand
+
+| File | Answers | Cost |
+|---|---|---|
+| `docs/CHANGELOG.md` | why something is the way it is; what a past session decided | grows |
+| `fork-divergences.txt` | why a given test is expected to fail | ~1k |
+| `rename.py` docstrings | what each transform rule protects against | ~3k |
+
+## Change log
+
+| Date | Headline | Read before touching |
+|---|---|---|
+| 2026-08-04 | Fork created: transform, guard, migrate verb, weekly sync, PyPI publish | all of it — `docs/CHANGELOG.md` |
