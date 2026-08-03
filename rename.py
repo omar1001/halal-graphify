@@ -62,7 +62,10 @@ TEXT_SUFFIXES = {
 # Never modified: licence texts must stay verbatim (Apache-2.0 §4), and the
 # quarantined module must keep the term it exists to search for.
 LICENCE_FILES = {"LICENSE", "LICENSE-MIT", "NOTICE"}
-QUARANTINED = {f"{FORK_PKG}/migrate.py"}
+# Both paths are the same file: the fork-owned source, and the copy the overlay
+# places inside the package. During a sync the guard only ever sees the second,
+# but listing both means running the guard over the repo root is also clean.
+QUARANTINED = {f"{FORK_PKG}/migrate.py", "overlay/migrate.py"}
 
 SKIP_DIRS = {".git", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
              "dist", "build", ".venv", "venv", "node_modules", ".github"}
