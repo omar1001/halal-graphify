@@ -6,3 +6,8 @@ This product is licensed under the Apache License, Version 2.0 (see LICENSE).
 Portions of this software were contributed under the MIT License prior to the
 relicensing and remain available under those terms. The original MIT license
 text is retained in LICENSE-MIT.
+
+The GDScript / Godot extractor (halal_graphify/extractors/gdscript.py)
+is not part of upstream Graphify. It derives from the graphify-godot
+fork by Bruno Hidalgo (MIT), ported onto Graphify v0.9.23 by Epic
+Millennium, and is carried here as a fork-owned overlay.

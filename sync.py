@@ -168,6 +168,183 @@ def _register_migrate_verb(main_py: Path) -> None:
     main_py.write_text(text, encoding="utf-8")
 
 
+def _anchored_insert(text: str, anchor: str, addition: str, *, what: str,
+                     where: str) -> str:
+    """Insert `addition` immediately after the line containing `anchor`.
+
+    Fails loud rather than silently doing nothing: a missing anchor means
+    upstream moved the thing we hook into, and a silently skipped patch would
+    ship a release whose Godot support is quietly half-wired. Idempotent --
+    if the addition is already present the text is returned untouched, so a
+    re-run cannot duplicate it.
+    """
+    if addition.strip() in text:
+        return text
+    if anchor not in text:
+        raise SystemExit(
+            f"\nGodot overlay: could not find the {what} anchor in {where}.\n"
+            f"  looked for: {anchor.strip()[:100]}\n"
+            "Upstream has moved or rewritten it. Update the anchor in sync.py\n"
+            "(_install_gdscript_extractor). Nothing has been published."
+        )
+    line_end = text.index(anchor) + len(anchor)
+    line_end = text.index("\n", line_end) + 1
+    return text[:line_end] + addition + text[line_end:]
+
+
+def _install_gdscript_extractor(src: Path) -> None:
+    """Add Godot/GDScript support to the regenerated tree.
+
+    Upstream Graphify has no GDScript backend at all -- .gd files fall through
+    to `unclassified`, so a Godot project graphs to nothing useful. This wires
+    in the fork's own extractor (overlay/gdscript.py), ported from Bruno
+    Hidalgo's graphify-godot.
+
+    Everything here is an ANCHORED INSERT into upstream's tables rather than a
+    rewrite of them, for the same reason `migrate` is intercepted rather than
+    added to the dispatch table: the tables' shape is upstream's to change, and
+    an additive patch survives most refactors. Where an anchor does vanish, the
+    build stops loudly instead of shipping a half-wired release.
+
+    The grammar is an OPTIONAL extra (`[godot]`): GDScript has no standalone
+    tree-sitter-* wheel on PyPI, so the only source is the large
+    tree-sitter-language-pack, and making it a core dependency would tax every
+    install for a language most users never touch. .tscn/.tres are pure regex
+    and work with no extra at all.
+    """
+    pkg = src / FORK_PKG
+
+    # 1. The extractor itself, and its tests.
+    shutil.copy2(HERE / "overlay" / "gdscript.py", pkg / "extractors" / "gdscript.py")
+    tests_dir = src / "tests"
+    if tests_dir.is_dir():
+        shutil.copy2(HERE / "overlay" / "test_gdscript.py", tests_dir / "test_gdscript.py")
+
+    # 2. detect.py -- teach the scanner that .gd/.tscn/.tres are code, not
+    #    unclassified junk. Without this the extractor is never reached.
+    detect = pkg / "detect.py"
+    text = detect.read_text(encoding="utf-8")
+    if "'.gd'" not in text:
+        anchor = "'.cls', '.trigger'}"
+        if anchor not in text:
+            raise SystemExit(
+                "\nGodot overlay: CODE_EXTENSIONS tail not found in detect.py.\n"
+                "Update the anchor in sync.py. Nothing has been published."
+            )
+        text = text.replace(anchor, "'.cls', '.trigger', '.gd', '.tscn', '.tres'}")
+        detect.write_text(text, encoding="utf-8")
+
+    # 3. extract.py -- import, extension->language map, extension->function
+    #    dispatch. All three are needed; any one alone is a no-op.
+    extract = pkg / "extract.py"
+    text = extract.read_text(encoding="utf-8")
+    text = _anchored_insert(
+        text,
+        f"from {FORK_PKG}.extractors.zig import extract_zig  # noqa: F401",
+        f"from {FORK_PKG}.extractors.gdscript import "
+        "extract_gdscript, extract_gd_scene, extract_tscn, extract_tres  # noqa: F401\n",
+        what="extractor-import", where="extract.py",
+    )
+    text = _anchored_insert(
+        text,
+        '".ps1": "powershell", ".psm1": "powershell", ".psd1": "powershell",',
+        '    ".gd": "gdscript", ".tscn": "gdscript", ".tres": "gdscript",\n',
+        what="extension->language map", where="extract.py",
+    )
+    text = _anchored_insert(
+        text,
+        '    ".sql": extract_sql,',
+        '    ".gd": extract_gdscript,\n'
+        '    ".tscn": extract_tscn,\n'
+        '    ".tres": extract_tres,\n',
+        what="extension->extractor dispatch", where="extract.py",
+    )
+    extract.write_text(text, encoding="utf-8")
+
+    # 4. extractors/__init__.py -- the by-language registry.
+    init = pkg / "extractors" / "__init__.py"
+    text = init.read_text(encoding="utf-8")
+    text = _anchored_insert(
+        text,
+        f"from {FORK_PKG}.extractors.zig import extract_zig",
+        f"from {FORK_PKG}.extractors.gdscript import "
+        "extract_gdscript, extract_tres, extract_tscn\n",
+        what="registry import", where="extractors/__init__.py",
+    )
+    text = _anchored_insert(
+        text,
+        '    "fortran": extract_fortran,',
+        '    "gdscript": extract_gdscript,\n'
+        '    "tscn": extract_tscn,\n'
+        '    "tres": extract_tres,\n',
+        what="LANGUAGE_EXTRACTORS registry", where="extractors/__init__.py",
+    )
+    init.write_text(text, encoding="utf-8")
+
+    # 5. pyproject.toml -- the optional extra, plus membership of `all`.
+    pyproject = src / "pyproject.toml"
+    text = pyproject.read_text(encoding="utf-8")
+    if "godot = [" not in text:
+        anchor = 'terraform = ["tree-sitter-hcl"]'
+        if anchor not in text:
+            raise SystemExit(
+                "\nGodot overlay: optional-extras block not found in pyproject.toml.\n"
+                "Update the anchor in sync.py. Nothing has been published."
+            )
+        text = text.replace(anchor, anchor + "\n" + (
+            "# GDScript has no standalone tree-sitter-* wheel on PyPI; the language\n"
+            "# pack (PrestonKnopp/tree-sitter-gdscript) is the only source, and it is\n"
+            "# large. Optional so only Godot users pay for it. .tscn/.tres need nothing.\n"
+            'godot = ["tree-sitter-language-pack>=0.9"]'
+        ))
+    # The leading comma matters: a bare '"tree-sitter-pascal"]' also matches
+    # `pascal = ["tree-sitter-pascal"]` two lines up and would quietly drag the
+    # language pack into the pascal extra as well. Only the `all` list has a
+    # preceding element, so only it has the comma.
+    if "tree-sitter-language-pack" not in text.split("all = [")[1].split("]")[0]:
+        text = text.replace(', "tree-sitter-pascal"]',
+                            ', "tree-sitter-pascal", "tree-sitter-language-pack"]')
+    pyproject.write_text(text, encoding="utf-8")
+
+    # 6. README -- listed alongside the other languages, deliberately NOT
+    #    promoted to the banner or the intro. Godot is an inclusion here, not
+    #    the fork's headline; the headline is still the renamed term.
+    readme = src / "README.md"
+    text = readme.read_text(encoding="utf-8")
+    text = _anchored_insert(
+        text,
+        "| `pascal` | Pascal / Delphi",
+        "| `godot` | Godot GDScript `.gd` AST extraction "
+        "(`.tscn`/`.tres` scene files are parsed without it) | "
+        '`uv tool install "halal-graphify[godot]"` |\n',
+        what="optional-extras table row", where="README.md",
+    )
+    text = _anchored_insert(
+        text,
+        "| Terraform / HCL | `.tf .tfvars .hcl`",
+        "| Godot / GDScript | `.gd` (classes, functions, signals, `extends`, "
+        "`preload`/`load`, `emit`/`connect`; requires "
+        "`uv tool install halal-graphify[godot]`) and `.tscn .tres` scene/resource "
+        "files (script bindings and instanced scenes, no extra needed) |\n",
+        what="file-types table row", where="README.md",
+    )
+    readme.write_text(text, encoding="utf-8")
+
+    # 7. NOTICE -- Apache-2.0 s4(d) attribution for the ported GDScript code.
+    #    LICENSE itself is copied verbatim and never touched; NOTICE is the
+    #    correct place to record a derived component's provenance.
+    notice = src / "NOTICE"
+    text = notice.read_text(encoding="utf-8")
+    if "GDScript" not in text:
+        text = text.rstrip("\n") + "\n\n" + (
+            "The GDScript / Godot extractor (halal_graphify/extractors/gdscript.py)\n"
+            "is not part of upstream Graphify. It derives from the graphify-godot\n"
+            "fork by Bruno Hidalgo (MIT), ported onto Graphify v0.9.23 by Epic\n"
+            "Millennium, and is carried here as a fork-owned overlay.\n"
+        )
+        notice.write_text(text, encoding="utf-8")
+
+
 def regenerate(tag: str, workdir: Path) -> Path:
     """Fetch the tag, transform it, and return the generated tree."""
     src = workdir / "upstream"
@@ -189,6 +366,7 @@ def regenerate(tag: str, workdir: Path) -> Path:
     print("  applying overlay ...")
     shutil.copy2(HERE / "overlay" / "migrate.py", src / FORK_PKG / "migrate.py")
     _register_migrate_verb(src / FORK_PKG / "__main__.py")
+    _install_gdscript_extractor(src)
     return src
 
 

@@ -9,3 +9,6 @@ build/
 .venv/
 venv/
 *.bak
+
+# The tool's own output dir, created by test runs. Never part of this repo.
+graphify-out/

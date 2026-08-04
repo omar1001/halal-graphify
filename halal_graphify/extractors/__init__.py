@@ -32,6 +32,7 @@ from halal_graphify.extractors.sql import extract_sql
 from halal_graphify.extractors.terraform import extract_terraform
 from halal_graphify.extractors.verilog import extract_verilog
 from halal_graphify.extractors.zig import extract_zig
+from halal_graphify.extractors.gdscript import extract_gdscript, extract_tres, extract_tscn
 
 LANGUAGE_EXTRACTORS: dict[str, Callable[[Path], dict]] = {
     "apex": extract_apex,
@@ -45,6 +46,9 @@ LANGUAGE_EXTRACTORS: dict[str, Callable[[Path], dict]] = {
     "dmm": extract_dmm,
     "elixir": extract_elixir,
     "fortran": extract_fortran,
+    "gdscript": extract_gdscript,
+    "tscn": extract_tscn,
+    "tres": extract_tres,
     "go": extract_go,
     "json": extract_json,
     "julia": extract_julia,

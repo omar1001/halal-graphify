@@ -6,6 +6,10 @@ An unofficial fork of [Graphify](https://github.com/Graphify-Labs/graphify) that
 original's deity-based name for highly-connected nodes with **"hub node"**. Public, Apache-2.0,
 published to PyPI as `halal-graphify`.
 
+It also carries one capability upstream lacks: **Godot / GDScript extraction** (`.gd` AST plus
+`.tscn`/`.tres` scenes), ported from `graphify-godot` and installed as an overlay. `.gd` needs the
+optional `[godot]` extra. Secondary to the rename by design — see the changelog row before changing it.
+
 ## The one invariant
 
 **The rule is about attribution, not the word.** Nothing may *call* a node — or anything else — a
@@ -42,6 +46,8 @@ The source tree is **generated, not edited**. It is rebuilt from an upstream rel
 |---|---|
 | `rename.py` | the transform + the guard |
 | `overlay/migrate.py` | the `migrate` verb; sole home of the old term |
+| `overlay/gdscript.py` | the Godot/GDScript extractor (upstream has none) |
+| `overlay/test_gdscript.py` | its tests |
 | `sync.py` | fetch newest upstream tag → rename → overlay → commit |
 | `fork-divergences.txt` | upstream tests that cannot pass in a fork, each with a reason |
 | `.github/workflows/sync.yml` | weekly sync + PyPI publish |
@@ -88,3 +94,4 @@ pytest tests -q                 # upstream's suite; see fork-divergences.txt
 | Date | Headline | Read before touching |
 |---|---|---|
 | 2026-08-04 | Fork created: transform, guard, migrate verb, weekly sync, PyPI publish | all of it — `docs/CHANGELOG.md` |
+| 2026-08-04 | Godot/GDScript added as an overlay + `[godot]` extra; known `X.gd`/`X.tscn` id-collision caveat | `overlay/gdscript.py`, `sync.py:_install_gdscript_extractor` |

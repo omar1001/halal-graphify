@@ -55,6 +55,7 @@ from halal_graphify.extractors.sql import extract_sql  # noqa: F401
 from halal_graphify.extractors.terraform import extract_terraform  # noqa: F401
 from halal_graphify.extractors.verilog import extract_verilog  # noqa: F401
 from halal_graphify.extractors.zig import extract_zig  # noqa: F401
+from halal_graphify.extractors.gdscript import extract_gdscript, extract_gd_scene, extract_tscn, extract_tres  # noqa: F401
 from halal_graphify.security import sanitize_metadata
 from halal_graphify.paths import disambiguate_ambiguous_candidates
 
@@ -1858,6 +1859,7 @@ _LANG_FAMILY_BY_EXT: dict[str, str] = {
     ".dart": "dart",
     ".sh": "shell", ".bash": "shell",
     ".ps1": "powershell", ".psm1": "powershell", ".psd1": "powershell",
+    ".gd": "gdscript", ".tscn": "gdscript", ".tres": "gdscript",
 }
 
 
@@ -4181,6 +4183,9 @@ _DISPATCH: dict[str, Any] = {
     ".sv": extract_verilog,
     ".svh": extract_verilog,
     ".sql": extract_sql,
+    ".gd": extract_gdscript,
+    ".tscn": extract_tscn,
+    ".tres": extract_tres,
     ".md": extract_markdown,
     ".mdx": extract_markdown,
     ".qmd": extract_markdown,
