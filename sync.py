@@ -246,16 +246,21 @@ def _install_gdscript_extractor(src: Path) -> None:
 
     # 2. detect.py -- teach the scanner that .gd/.tscn/.tres are code, not
     #    unclassified junk. Without this the extractor is never reached.
+    #    Inserted before the set's closing brace rather than after a "last
+    #    element" anchor: upstream keeps appending languages to the tail
+    #    (v0.9.49 added Lisp right after '.trigger', which broke the old
+    #    anchor), and the closing brace is the one part that cannot move.
     detect = pkg / "detect.py"
     text = detect.read_text(encoding="utf-8")
     if "'.gd'" not in text:
-        anchor = "'.cls', '.trigger'}"
-        if anchor not in text:
+        m = re.search(r"(?m)^(CODE_EXTENSIONS = \{.*)\}", text)
+        if not m:
             raise SystemExit(
-                "\nGodot overlay: CODE_EXTENSIONS tail not found in detect.py.\n"
-                "Update the anchor in sync.py. Nothing has been published."
+                "\nGodot overlay: CODE_EXTENSIONS set not found in detect.py.\n"
+                "Update the pattern in sync.py. Nothing has been published."
             )
-        text = text.replace(anchor, "'.cls', '.trigger', '.gd', '.tscn', '.tres'}")
+        text = (text[:m.end(1)] + ", '.gd', '.tscn', '.tres'}"
+                + text[m.end(1) + 1:])
         detect.write_text(text, encoding="utf-8")
 
     # 3. extract.py -- import, extension->language map, extension->function
@@ -321,13 +326,20 @@ def _install_gdscript_extractor(src: Path) -> None:
             "# large. Optional so only Godot users pay for it. .tscn/.tres need nothing.\n"
             'godot = ["tree-sitter-language-pack>=0.9"]'
         ))
-    # The leading comma matters: a bare '"tree-sitter-pascal"]' also matches
-    # `pascal = ["tree-sitter-pascal"]` two lines up and would quietly drag the
-    # language pack into the pascal extra as well. Only the `all` list has a
-    # preceding element, so only it has the comma.
+    # Appended before the `all` list's closing bracket, not after a "last
+    # element" anchor: upstream keeps growing this list (v0.9.49 added OCaml
+    # and Common Lisp after pascal, which turned the old
+    # `.replace(', "tree-sitter-pascal"]', ...)` into a SILENT no-op — the
+    # language pack would have quietly dropped out of `all`).
     if "tree-sitter-language-pack" not in text.split("all = [")[1].split("]")[0]:
-        text = text.replace(', "tree-sitter-pascal"]',
-                            ', "tree-sitter-pascal", "tree-sitter-language-pack"]')
+        m = re.search(r'(?m)^(all = \[.*)\]', text)
+        if not m:
+            raise SystemExit(
+                "\nGodot overlay: `all = [...]` list not found in pyproject.toml.\n"
+                "Update the pattern in sync.py. Nothing has been published."
+            )
+        text = (text[:m.end(1)] + ', "tree-sitter-language-pack"]'
+                + text[m.end(1) + 1:])
     pyproject.write_text(text, encoding="utf-8")
 
     # 6. README -- listed alongside the other languages, deliberately NOT

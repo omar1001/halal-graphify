@@ -40,6 +40,52 @@ def test_install_default_claude(tmp_path):
     assert (tmp_path / ".claude" / "skills" / "halal-graphify" / "SKILL.md").exists()
 
 
+def test_install_claude_md_honors_claude_config_dir(tmp_path, monkeypatch):
+    """#2694: with CLAUDE_CONFIG_DIR set, the always-on registration lands in
+    $CLAUDE_CONFIG_DIR/CLAUDE.md — not the default ~/.claude/CLAUDE.md, which the
+    old code mutated regardless of the relocated profile."""
+    from halal_graphify.__main__ import install
+
+    home = tmp_path / "home"
+    home.mkdir()
+    config = tmp_path / "cfg"
+    config.mkdir()
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(config))
+    old = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        with patch("halal_graphify.__main__.Path.home", return_value=home):
+            install(platform="claude")
+    finally:
+        os.chdir(old)
+
+    cfg_md = config / "CLAUDE.md"
+    assert cfg_md.exists(), "registration did not land in $CLAUDE_CONFIG_DIR"
+    text = cfg_md.read_text()
+    assert "# halal-graphify" in text
+    assert str(config) in text, "skill reference does not point into the config dir"
+    assert not (home / ".claude" / "CLAUDE.md").exists(), "default profile was mutated"
+
+
+def test_install_claude_md_defaults_to_home_when_config_dir_unset(tmp_path, monkeypatch):
+    """Env unset: behavior is unchanged — the block lands in ~/.claude/CLAUDE.md
+    with the tilde skill reference."""
+    from halal_graphify.__main__ import install
+
+    monkeypatch.delenv("CLAUDE_CONFIG_DIR", raising=False)
+    old = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        with patch("halal_graphify.__main__.Path.home", return_value=tmp_path):
+            install(platform="claude")
+    finally:
+        os.chdir(old)
+
+    md = tmp_path / ".claude" / "CLAUDE.md"
+    assert md.exists()
+    assert "~/.claude/skills/halal-halal_graphify/SKILL.md" in md.read_text()
+
+
 def test_install_codebuddy(tmp_path):
     _install(tmp_path, "codebuddy")
     assert (tmp_path / ".codebuddy" / "skills" / "halal-graphify" / "SKILL.md").exists()
