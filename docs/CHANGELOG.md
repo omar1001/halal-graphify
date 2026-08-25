@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-08-25 — Synced to upstream v0.9.49; anchor style hardened; published
+
+Upstream had moved 17 releases (0.9.32 → 0.9.49) while the weekly sync was stopped by two overlay
+anchors, discovered when the `view` release's `force_publish` run failed the same way the scheduled
+runs had been failing:
+
+- **`detect.py`:** v0.9.49 appended Lisp extensions immediately after `'.trigger'`, breaking the
+  `'.cls', '.trigger'}` tail anchor (loud failure — the guard worked as designed).
+- **`pyproject.toml`:** the `all` extras list grew past `tree-sitter-pascal`, so the
+  `str.replace(', "tree-sitter-pascal"]', …)` for the language pack became a **silent no-op** —
+  the Godot extra would have quietly dropped out of `all`. This one had no guard.
+
+**Design call — anchor on the closing delimiter, not the last element.** Both fixes now insert
+before the structure's closing brace/bracket (`CODE_EXTENSIONS = {…}`, `all = […]`), because
+upstream keeps appending to the tails and a "last element" anchor breaks (or worse, silently
+misses) on every append. Both now hard-fail if the structure itself cannot be found. Apply the
+same rule to any future anchored insert.
+
+Note for the wheel-glob quirk below: this sync confirmed CI's test job installs no `build`, so the
+`test_wheel_packaging` fixture skips there; the suite gate passed and 0.9.49 published cleanly
+(the fork tree regenerated on CI matched this machine's byte-for-byte — the transform is
+deterministic cross-platform). Both local installs upgraded and verified
+(`uv tool` and the `Python312\Scripts` pip copy, both at 0.9.49 with `view` answering).
+
+Since v0.9.49 is a new upstream tag, `FORK_POST` has no entry for it and the published version is
+the clean `0.9.49` — the `view` verb (built at 0.9.32.post2, never published) ships in it.
+
 ## 2026-08-25 — `view` verb: architecture views from graph.json (0.9.32.post2)
 
 **What:** a new fork-only verb, `halal-graphify view <kind>`, computing architecture views from

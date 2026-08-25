@@ -100,3 +100,4 @@ pytest tests -q                 # upstream's suite; see fork-divergences.txt
 | 2026-08-04 | Fork created: transform, guard, migrate verb, weekly sync, PyPI publish | all of it — `docs/CHANGELOG.md` |
 | 2026-08-04 | Godot/GDScript added as an overlay + `[godot]` extra; known `X.gd`/`X.tscn` id-collision caveat | `overlay/gdscript.py`, `sync.py:_install_gdscript_extractor` |
 | 2026-08-25 | `view` verb (map/area/file/node/impact/trace/flaws/stats) + generalised fork-verb hook + regeneration-safe `.postN` versioning (`FORK_POST`) → 0.9.32.post2 | `overlay/views.py`, `sync.py:_register_fork_verbs`, `_set_fork_version` |
+| 2026-08-25 | Synced to upstream v0.9.49 and published; anchors hardened (closing-delimiter rule — a silent pyproject no-op was found) | `sync.py:_install_gdscript_extractor`, the changelog entry |
