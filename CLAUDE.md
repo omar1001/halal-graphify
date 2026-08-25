@@ -6,9 +6,11 @@ An unofficial fork of [Graphify](https://github.com/Graphify-Labs/graphify) that
 original's deity-based name for highly-connected nodes with **"hub node"**. Public, Apache-2.0,
 published to PyPI as `halal-graphify`.
 
-It also carries one capability upstream lacks: **Godot / GDScript extraction** (`.gd` AST plus
-`.tscn`/`.tres` scenes), ported from `graphify-godot` and installed as an overlay. `.gd` needs the
-optional `[godot]` extra. Secondary to the rename by design — see the changelog row before changing it.
+It also carries capabilities upstream lacks, installed as overlays: **Godot / GDScript extraction**
+(`.gd` AST plus `.tscn`/`.tres` scenes, ported from `graphify-godot`; `.gd` needs the optional
+`[godot]` extra) and the **`view` verb** (architecture views computed from `graphify-out/graph.json`
+with no LLM calls — map/area/file/node/impact/trace/flaws/stats). Secondary to the rename by design —
+see the changelog rows before changing either.
 
 ## The one invariant
 
@@ -48,6 +50,8 @@ The source tree is **generated, not edited**. It is rebuilt from an upstream rel
 | `overlay/migrate.py` | the `migrate` verb; sole home of the old term |
 | `overlay/gdscript.py` | the Godot/GDScript extractor (upstream has none) |
 | `overlay/test_gdscript.py` | its tests |
+| `overlay/views.py` | the `view` verb: architecture views from graph.json, no LLM |
+| `overlay/test_views.py` | its tests |
 | `sync.py` | fetch newest upstream tag → rename → overlay → commit |
 | `fork-divergences.txt` | upstream tests that cannot pass in a fork, each with a reason |
 | `.github/workflows/sync.yml` | weekly sync + PyPI publish |
@@ -95,3 +99,4 @@ pytest tests -q                 # upstream's suite; see fork-divergences.txt
 |---|---|---|
 | 2026-08-04 | Fork created: transform, guard, migrate verb, weekly sync, PyPI publish | all of it — `docs/CHANGELOG.md` |
 | 2026-08-04 | Godot/GDScript added as an overlay + `[godot]` extra; known `X.gd`/`X.tscn` id-collision caveat | `overlay/gdscript.py`, `sync.py:_install_gdscript_extractor` |
+| 2026-08-25 | `view` verb (map/area/file/node/impact/trace/flaws/stats) + generalised fork-verb hook + regeneration-safe `.postN` versioning (`FORK_POST`) → 0.9.32.post2 | `overlay/views.py`, `sync.py:_register_fork_verbs`, `_set_fork_version` |

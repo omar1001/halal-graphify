@@ -458,14 +458,16 @@ def _silence_broken_pipe() -> None:
 
 
 # --- halal-graphify addition ------------------------------------------
-# `migrate` is a fork-only verb. Intercepted here rather than added to
-# upstream's dispatch table so that regenerating against a new upstream
-# release cannot collide with changes to that table's shape.
-def _hg_migrate_hook():
+# Fork-only verbs. Intercepted here rather than added to upstream's
+# dispatch table so that regenerating against a new upstream release
+# cannot collide with changes to that table's shape.
+def _hg_fork_verb_hook():
     import sys
-    if len(sys.argv) > 1 and sys.argv[1] == 'migrate':
-        from halal_graphify.migrate import main as _m
-        raise SystemExit(_m(sys.argv[2:]))
+    _verbs = {'migrate': 'migrate', 'view': 'views'}
+    if len(sys.argv) > 1 and sys.argv[1] in _verbs:
+        import importlib
+        _mod = importlib.import_module('halal_graphify.' + _verbs[sys.argv[1]])
+        raise SystemExit(_mod.main(sys.argv[2:]))
 
 
 def main() -> None:
@@ -473,7 +475,7 @@ def main() -> None:
     stdout early, halal-graphify treats it as success instead of crashing with an
     unhandled write-to-closed-pipe error and exit 255 — which made CI wrappers and
     agent harnesses read a successful query as a command failure (#1807)."""
-    _hg_migrate_hook()
+    _hg_fork_verb_hook()
     try:
         _run_cli()
         # Flush explicitly, inside the guard. Piped stdout is block-buffered, so a

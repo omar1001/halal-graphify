@@ -1,5 +1,56 @@
 # Changelog
 
+## 2026-08-25 — `view` verb: architecture views from graph.json (0.9.32.post2)
+
+**What:** a new fork-only verb, `halal-graphify view <kind>`, computing architecture views from
+`graphify-out/graph.json` with zero LLM calls. Kinds: `map` (folders at an adaptive depth as
+"areas", aggregated dependency edges between them), `area <folder>`, `file <path>`, `node <name>`,
+`impact <name>` (reverse dependency traversal in rings), `trace <A> <B>` / `trace --from <X>`
+(shortest dependency path / forward reachability), `flaws` (cycles via SCCs at area and file level,
+hub overload above `max(20, p95)` fan-in/out, orphan files with entry points and tests excluded),
+and `stats`. Every kind has `--json`. Built for the visual-reply plugin's graph view (M2 of
+`visual-reply/docs/PLAN-graph-view.md`), but useful standalone.
+
+**Where:** `overlay/views.py` (engine, ~750 lines, stdlib + networkx), `overlay/test_views.py`
+(32 tests on a synthetic fixture with a planted cycle, hub, orphan, Windows-backslash paths, and
+document nodes), installed by `sync.py:_install_views()`. The `migrate` injection hook was
+generalised: `_register_migrate_verb` → `_register_fork_verbs` + a `FORK_VERBS` dict
+(verb → module); one injected `_hg_fork_verb_hook` in `__main__.py` dispatches all fork verbs.
+M4's `explorer` will be one more `FORK_VERBS` entry. README gets an anchored `view` usage block
+after the fork banner's migrate section.
+
+**Design calls (do not re-litigate without reading `visual-reply/docs/PLAN-graph-view.md` §5):**
+- Hierarchy edges are the closed set `{contains, method, defines}`; EVERY other relation counts as
+  a dependency edge (BroMic's `implements` was already outside the plan's draft list — an explicit
+  dependency list silently drops what new extractors add).
+- Structural views (`map`/`area`/`file`/`flaws`) default to `file_type == "code"` nodes;
+  `--all-types` lifts it. Doc-heavy repos otherwise drown the map (BroMic: 487/1,394 doc nodes).
+- Adaptive depth: smallest folder depth giving 5–15 areas, else closest achievable
+  (alzheimer_project honestly has 4 code folders → 4 areas; that is correct output, not a bug).
+- Exit codes: 0 ok · 1 error/no-path · 2 ambiguous name (candidates listed) · 3 no graph
+  (prints the free `extract --code-only` offer). Matches `graph_open.py`'s exit-3 convention.
+
+**Verified:** `pytest overlay` 35/35; `map` on all six existing graphs picks sane areas
+(5 of 6 inside the 5–15 band, see above); `flaws` on BroMic finds the real
+`MainWindow.xaml ↔ MainWindow.xaml.cs` cycle — hand-checked against raw edges (11 `references`
+XAML→code-behind + 1 `inherits` back); full `python sync.py --tag v0.9.32 --no-commit`
+regeneration carries both verbs and only the intended diffs; `views.py` ships in the wheel.
+
+**Version management fixed — the Godot release's bump was NOT regeneration-safe.** 0.9.32.post1
+was hand-edited into the generated `pyproject.toml`; this session's regeneration silently reverted
+it to 0.9.32 (and PyPI's `skip-existing` would have published nothing, also silently). Now
+`sync.py:FORK_POST` (`{"v0.9.32": 2}`, keyed by upstream tag so a new upstream release self-resets
+to its clean version) applies the suffix during every regeneration via `_set_fork_version()`.
+This release is **0.9.32.post2**.
+
+**Known local-only test quirk (pre-existing, not from this change):** `tests/test_wheel_packaging.py`
+globs `halal-graphify-*.whl`, but modern setuptools normalises wheel filenames to underscores
+(`halal_graphify-…`), so on a machine with `python -m build` installed the fixture errors with
+"no wheel produced". CI's test job has no `build`, so the fixture skips there and the sync guard
+never sees it. Upstream's glob worked because `graphifyy` has no hyphen. Left alone: editing
+upstream tests is forbidden, and `fork-divergences.txt` deselection was not extended this session —
+if CI ever grows a `build` install, add it there with this paragraph as the reason.
+
 ## 2026-08-04 — Godot / GDScript support added as a regeneration-safe overlay
 
 **Why.** Upstream Graphify has no GDScript backend at all: every `.gd` file lands in

@@ -127,27 +127,51 @@ def current_fork_tag() -> str | None:
     return state.read_text(encoding="utf-8").strip() if state.is_file() else None
 
 
-def _register_migrate_verb(main_py: Path) -> None:
-    """Wire `halal-graphify migrate` into the CLI.
+# Fork-only CLI verbs: verb -> module inside the package whose main(argv)
+# handles it. M4 adds "explorer" here once overlay/explorer_html.py exists —
+# never register a verb whose module is not shipped, or the hook itself
+# becomes the crash.
+FORK_VERBS = {"migrate": "migrate", "view": "views"}
+
+# Fork-only releases at an UNCHANGED upstream tag publish as <version>.postN.
+# Keyed by tag so a new upstream release self-resets to its clean version —
+# no counter for a human (or the unattended weekly sync) to forget to zero.
+# History: v0.9.32 post1 = Godot/GDScript; post2 = the `view` verb.
+#
+# The Godot release bumped pyproject BY HAND in the tree, which is generated
+# — this very file's next regeneration erased that bump back to 0.9.32
+# (caught 2026-08-25). PyPI publishes with skip-existing, so an erased bump
+# does not fail the workflow; it silently publishes NOTHING. Keep the suffix
+# here, where regeneration applies it, never in the tree.
+FORK_POST = {"v0.9.32": 2}
+
+
+def _register_fork_verbs(main_py: Path) -> None:
+    """Wire the fork-only verbs (`migrate`, `view`, ...) into the CLI.
 
     Injected rather than added to upstream's dispatch table, because that
     table's shape is upstream's to change. Intercepting before dispatch is
-    stable across upstream refactors.
+    stable across upstream refactors. One hook dispatches every fork verb by
+    sys.argv[1], so adding a verb means adding a FORK_VERBS entry, not a
+    second injection.
     """
     text = main_py.read_text(encoding="utf-8")
-    if "_hg_migrate_hook" in text:
+    if "_hg_fork_verb_hook" in text:
         return
 
+    verbs = ", ".join(f"'{v}': '{m}'" for v, m in sorted(FORK_VERBS.items()))
     hook = (
         "# --- halal-graphify addition ------------------------------------------\n"
-        "# `migrate` is a fork-only verb. Intercepted here rather than added to\n"
-        "# upstream's dispatch table so that regenerating against a new upstream\n"
-        "# release cannot collide with changes to that table's shape.\n"
-        "def _hg_migrate_hook():\n"
+        "# Fork-only verbs. Intercepted here rather than added to upstream's\n"
+        "# dispatch table so that regenerating against a new upstream release\n"
+        "# cannot collide with changes to that table's shape.\n"
+        "def _hg_fork_verb_hook():\n"
         "    import sys\n"
-        "    if len(sys.argv) > 1 and sys.argv[1] == 'migrate':\n"
-        "        from halal_graphify.migrate import main as _m\n"
-        "        raise SystemExit(_m(sys.argv[2:]))\n"
+        "    _verbs = {" + verbs + "}\n"
+        "    if len(sys.argv) > 1 and sys.argv[1] in _verbs:\n"
+        "        import importlib\n"
+        "        _mod = importlib.import_module('halal_graphify.' + _verbs[sys.argv[1]])\n"
+        "        raise SystemExit(_mod.main(sys.argv[2:]))\n"
         "\n\n"
     )
 
@@ -160,11 +184,11 @@ def _register_migrate_verb(main_py: Path) -> None:
     )
     m = pattern.search(text)
     if not m:
-        raise SystemExit("could not find `def main(` in __main__.py to wire `migrate` into")
+        raise SystemExit("could not find `def main(` in __main__.py to wire the fork verbs into")
 
     # The call goes after main()'s docstring, so the docstring stays a docstring.
     text = (text[:m.start()] + hook + m.group(1) + m.group(2)
-            + "    _hg_migrate_hook()\n" + text[m.end():])
+            + "    _hg_fork_verb_hook()\n" + text[m.end():])
     main_py.write_text(text, encoding="utf-8")
 
 
@@ -182,10 +206,10 @@ def _anchored_insert(text: str, anchor: str, addition: str, *, what: str,
         return text
     if anchor not in text:
         raise SystemExit(
-            f"\nGodot overlay: could not find the {what} anchor in {where}.\n"
+            f"\nFork overlay: could not find the {what} anchor in {where}.\n"
             f"  looked for: {anchor.strip()[:100]}\n"
-            "Upstream has moved or rewritten it. Update the anchor in sync.py\n"
-            "(_install_gdscript_extractor). Nothing has been published."
+            "Upstream has moved or rewritten it. Update the anchor in sync.py.\n"
+            "Nothing has been published."
         )
     line_end = text.index(anchor) + len(anchor)
     line_end = text.index("\n", line_end) + 1
@@ -345,6 +369,65 @@ def _install_gdscript_extractor(src: Path) -> None:
         notice.write_text(text, encoding="utf-8")
 
 
+def _install_views(src: Path) -> None:
+    """Add the `view` verb (architecture views) to the regenerated tree.
+
+    The engine is a single fork-owned module (overlay/views.py) plus its
+    tests; nothing of upstream's is modified except the README, which gets
+    an anchored usage block right after the fork banner's migrate section.
+    The verb itself is dispatched by _register_fork_verbs.
+    """
+    shutil.copy2(HERE / "overlay" / "views.py", src / FORK_PKG / "views.py")
+    tests_dir = src / "tests"
+    if tests_dir.is_dir():
+        shutil.copy2(HERE / "overlay" / "test_views.py", tests_dir / "test_views.py")
+
+    readme = src / "README.md"
+    text = readme.read_text(encoding="utf-8")
+    text = _anchored_insert(
+        text,
+        "double-click `migrate.bat`",
+        "\n"
+        "The fork also adds `view` — architecture views computed from\n"
+        "`graphify-out/graph.json` with zero LLM calls:\n"
+        "\n"
+        "```bash\n"
+        "halal-graphify view map              # areas (folders) and the edges between them\n"
+        "halal-graphify view impact <name>    # everything that transitively depends on <name>\n"
+        "halal-graphify view trace <A> <B>    # shortest dependency path\n"
+        "halal-graphify view flaws            # cycles, hub overload, orphan files\n"
+        "```\n"
+        "\n"
+        "Other kinds: `area <folder>`, `file <path>`, `node <name>`, `stats` —\n"
+        "each with `--json` for machine consumption.\n",
+        what="view usage block", where="README.md",
+    )
+    readme.write_text(text, encoding="utf-8")
+
+
+def _set_fork_version(src: Path, tag: str) -> None:
+    """Apply the fork's .postN suffix for this upstream tag, if any."""
+    post = FORK_POST.get(tag)
+    if not post:
+        return
+    pyproject = src / "pyproject.toml"
+    text = pyproject.read_text(encoding="utf-8")
+    m = re.search(r'(?m)^version = "(\d+\.\d+\.\d+)"$', text)
+    if not m:
+        raise SystemExit(
+            "\nFork overlay: could not find the version line in pyproject.toml\n"
+            "to apply the .post suffix. Nothing has been published."
+        )
+    if f"v{m.group(1)}" != tag and m.group(1) != tag:
+        raise SystemExit(
+            f"\nFork overlay: pyproject says {m.group(1)} but the tree was "
+            f"generated from {tag}.\nFORK_POST is keyed by tag, so refusing to "
+            "guess. Nothing has been published."
+        )
+    text = text[:m.start()] + f'version = "{m.group(1)}.post{post}"' + text[m.end():]
+    pyproject.write_text(text, encoding="utf-8")
+
+
 def regenerate(tag: str, workdir: Path) -> Path:
     """Fetch the tag, transform it, and return the generated tree."""
     src = workdir / "upstream"
@@ -365,8 +448,10 @@ def regenerate(tag: str, workdir: Path) -> Path:
     # The overlay: fork-only files that must NOT go through rename.py.
     print("  applying overlay ...")
     shutil.copy2(HERE / "overlay" / "migrate.py", src / FORK_PKG / "migrate.py")
-    _register_migrate_verb(src / FORK_PKG / "__main__.py")
+    _register_fork_verbs(src / FORK_PKG / "__main__.py")
     _install_gdscript_extractor(src)
+    _install_views(src)
+    _set_fork_version(src, tag)
     return src
 
 

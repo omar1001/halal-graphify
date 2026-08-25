@@ -42,6 +42,19 @@ recognised and never touched.
 
 On Windows you can also just double-click `migrate.bat` inside the project.
 
+The fork also adds `view` — architecture views computed from
+`graphify-out/graph.json` with zero LLM calls:
+
+```bash
+halal-graphify view map              # areas (folders) and the edges between them
+halal-graphify view impact <name>    # everything that transitively depends on <name>
+halal-graphify view trace <A> <B>    # shortest dependency path
+halal-graphify view flaws            # cycles, hub overload, orphan files
+```
+
+Other kinds: `area <folder>`, `file <path>`, `node <name>`, `stats` —
+each with `--json` for machine consumption.
+
 **What is *not* renamed, on purpose:** `graphify-out/`, `GRAPHIFY_OUT`,
 `.graphifyignore` and `.graphifyinclude`. Those live in *your* project, so
 leaving them alone means both tools read the same data and nothing you already
